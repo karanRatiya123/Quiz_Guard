@@ -82,7 +82,7 @@ router.back();
 src/
   app/            screens and layouts (routes) — no reusable widgets here
   components/     reusable UI ("dumb" pieces, no routing decisions)
-    auth/         login form + its inputs and decoration
+    auth/         login form, its inputs, and the admin "add faculty" form
     brand/        logo mark, dot field, chevrons, provider glyphs
     exams/        rename/delete dialogs and the long-press action sheet
     feedback/     success bottom sheet + confetti
@@ -92,7 +92,7 @@ src/
   constants/      colours and design tokens (spacing, radius, type)
   hooks/          small reusable React hooks (theme, animations, motion)
   services/       side effects that are not UI (upload, notifications, demo paper)
-  store/          app-wide state with Zustand (auth, exams, theme, attempt)
+  store/          app-wide state with Zustand (auth, exams, faculty, theme, attempt)
   types/          shared TypeScript types
   utils/          pure functions (formatting)
 ```
@@ -154,13 +154,14 @@ const createStyles = (colors: ThemeColors) =>
 
 ## 5. State management (Zustand)
 
-There are four stores, each a plain object created once and shared by every
+There are five stores, each a plain object created once and shared by every
 screen:
 
 | Store | Holds | Who reads it |
 | --- | --- | --- |
 | `src/store/authStore.ts` | the chosen role (`teacher` / `student`) | landing screen, sign out |
 | `src/store/examStore.ts` | the list of exams + add/rename/delete | Home, Upload, Profile |
+| `src/store/facultyStore.ts` | teacher directory + `addFaculty` | Add faculty, Profile entry |
 | `src/store/themeStore.ts` | `dark` or `light` | `useTheme()` everywhere |
 | `src/store/studentExamStore.ts` | the demo paper, candidate, answers, result | the four student screens |
 
@@ -197,9 +198,10 @@ exams: state.exams.filter((exam) => exam.id !== id)
 ### What is NOT persisted
 
 These stores live in memory. Reloading the app (or cold-starting the APK) resets
-the exams to the seeded samples, the student attempt to empty, and the role to
-`null`. Persistence would be a one-line plug-in with Zustand's `persist`
-middleware plus AsyncStorage — it is just not wired up yet.
+the exams to the seeded samples, the faculty directory back to the single admin,
+the student attempt to empty, and the role to `null`. Persistence would be a
+one-line plug-in with Zustand's `persist` middleware plus AsyncStorage — it is
+just not wired up yet.
 
 ---
 
@@ -214,6 +216,7 @@ server. Here is the honest mapping of what exists versus what is simulated.
 | Exam list | 5 hard-coded sample exams | `src/store/examStore.ts` (`SEED_EXAMS`) |
 | Login | checks email shape + 6-character password, then navigates | `src/components/auth/TeacherLoginForm.tsx` |
 | Account identity | fixed name/email "Alex Rivera" | `profile.tsx`, Home avatar |
+| Adding faculty | validates name / email / 8-character password, then adds a `faculty` entry; the password is discarded | `AddFacultyForm.tsx`, `src/store/facultyStore.ts` |
 | QR code target | placeholder URL `https://quizguard.app/join/<code>` | `Home` |
 | Notifications | local notification, generated on the device | `src/services/uploadNotifications.ts` |
 | Student join | form accepts a code; scanning prefills it | `student/join.tsx`, `student/scan.tsx` |

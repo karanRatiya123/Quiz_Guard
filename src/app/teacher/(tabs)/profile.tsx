@@ -166,6 +166,34 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Faculty — the admin creates the other teacher accounts here */}
+      <Text style={styles.sectionTitle}>FACULTY</Text>
+      <View style={styles.group}>
+        <Pressable
+          onPress={() => router.navigate('/teacher/add-faculty')}
+          accessibilityRole="button"
+          accessibilityLabel="Add faculty"
+          accessibilityHint="Opens a form to create a teacher account"
+          android_ripple={{ color: colors.secondaryPress }}
+          style={({ pressed }) => [styles.facultyRow, pressed && styles.infoRowPressed]}
+        >
+          <View style={styles.facultyIcon}>
+            <MaterialCommunityIcons
+              name="account-multiple-plus-outline"
+              size={20}
+              color={colors.text}
+            />
+          </View>
+          <View style={styles.settingText}>
+            <Text style={styles.settingTitle}>Add faculty</Text>
+            <Text style={styles.settingDescription}>
+              Create a teacher sign-in with an email and password.
+            </Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+        </Pressable>
+      </View>
+
       {/* Account */}
       <Text style={styles.sectionTitle}>ACCOUNT</Text>
       <View style={styles.group}>
@@ -392,6 +420,22 @@ const createStyles = (colors: ThemeColors) =>
       minHeight: 52,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
+    },
+    /* Faculty row */
+    facultyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.md,
+    },
+    facultyIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.control,
+      borderCurve: 'continuous',
+      backgroundColor: colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     infoRowPressed: {
       backgroundColor: colors.secondaryPress,

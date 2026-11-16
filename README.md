@@ -44,6 +44,7 @@ system "reduce motion" setting.
 - **Success feedback** — an animated confetti sheet plus an Android heads-up notification: *"Upload complete — Midterm paper uploaded successfully."* Tapping it returns to Home.
 - **QR sharing** — show the exam QR and code, then download the QR as a PNG or share it with the system sheet.
 - **Exam management** — long-press a card to rename or delete it, with a confirmation dialog for deletes.
+- **Faculty sign-in** — Profile → **Add faculty** creates a teacher account from a name, email and password, with a live account-card preview, inline validation, and the session's teacher directory.
 - **Appearance** — dark and light themes, both built from the same design tokens.
 
 ### Student
@@ -79,10 +80,10 @@ system "reduce motion" setting.
 ```
 
 Expo Router turns the file tree into routes, so there is no route table to
-maintain. Shared state lives in four small **Zustand** stores (auth, exams,
-theme, student attempt), which is how uploading on one screen instantly updates
-Home on another — and how the exam keeps its answers while moving between
-routes.
+maintain. Shared state lives in five small **Zustand** stores (auth, exams,
+faculty, theme, student attempt), which is how uploading on one screen instantly
+updates Home on another — and how the exam keeps its answers while moving
+between routes.
 
 A full beginner-friendly walkthrough — folder map, state flow, theme system,
 and where a real backend would plug in — is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
@@ -207,6 +208,7 @@ These are intentional placeholders for the frontend prototype, not bugs:
 - **No backend.** Uploads simulate progress for about two seconds and never leave the device; exams are seeded in memory and reset when the app restarts.
 - **Demo student exam.** Both the "Continue" button and the preview card open a fixed five-question paper. The code is only displayed; answers live in memory, are not graded, and are not sent anywhere.
 - **No real auth.** Login checks an email shape and a 6+ character password, then opens the teacher area. There is no account, token, or server session.
+- **Faculty accounts are in-memory.** **Add faculty** validates the form and adds the teacher to a session-only list. The password is never stored, and the list clears when the app restarts.
 - **Fixed demo identity.** The profile shows "Alex Rivera" until a user system exists.
 - **Placeholder join links.** QR codes encode `https://quizguard.app/join/<code>`, a reserved demo domain.
 - **Notifications are local.** The "upload complete" banner is generated on the device; no push service or token is involved.
