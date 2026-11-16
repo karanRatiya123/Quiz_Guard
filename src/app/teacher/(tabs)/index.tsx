@@ -713,7 +713,8 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: radius.pill,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: 'transparent',
+      /* A faint surface tint so outline chips read on the gray light-mode bg. */
+      backgroundColor: colors.field,
     },
     chipSelected: {
       backgroundColor: colors.accent,
@@ -725,7 +726,7 @@ const createStyles = (colors: ThemeColors) =>
     chipText: {
       ...typography.subhead,
       fontWeight: '600',
-      color: colors.textMuted,
+      color: colors.text,
     },
     chipTextSelected: {
       color: colors.onAccent,
@@ -733,7 +734,7 @@ const createStyles = (colors: ThemeColors) =>
     chipCount: {
       ...typography.caption,
       fontWeight: '600',
-      color: colors.textFaint,
+      color: colors.textMuted,
       fontVariant: ['tabular-nums'],
     },
     chipCountSelected: {

@@ -102,13 +102,14 @@ export const darkColors: ThemeColors = {
 };
 
 export const lightColors: ThemeColors = {
-  bg: '#FFFFFF',
+  bg: '#6A6A67',
   surface: '#E3E2C3',
   surfaceMuted: '#C1C1A9',
   border: '#8B8A87',
   text: '#272727',
-  textMuted: '#6A6A67',
-  textFaint: '#8B8A87',
+  /* Darkened so muted text stays readable on the Iron-ic gray background. */
+  textMuted: '#43423F',
+  textFaint: '#55544F',
   accent: '#E3E2C3',
   accentPress: 'rgba(227, 226, 195, 0.34)',
   onAccent: '#272727',

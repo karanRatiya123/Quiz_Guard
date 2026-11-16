@@ -17,8 +17,8 @@
 </p>
 
 > **Status:** frontend prototype. Every screen is implemented, but there is no
-> backend, database, or real authentication yet — uploads and login are
-> simulated locally. See [Known limitations](#known-limitations).
+> backend, database, or real authentication yet — uploads, login, and the
+> student exam are simulated locally. See [Known limitations](#known-limitations).
 
 ---
 
@@ -29,7 +29,7 @@ QuizGuard is a cross-platform **Expo / React Native** app with two roles:
 | Role | What they can do |
 | --- | --- |
 | **Teacher** | Sign in, manage a dashboard of exams, upload a paper, share a QR code or join code, rename/delete exams, switch appearance. |
-| **Student** | Enter a join code, or scan the teacher's QR code with the camera (the exam lookup itself is not wired up yet). |
+| **Student** | Enter a join code or scan a QR code, then sit the demo paper: briefing, timed MCQs with a question palette, and a submission summary. |
 
 The experience is deliberately calm and focused: a charcoal and cream palette,
 a floating capsule tab bar, clear typography, and motion that respects the
@@ -48,8 +48,13 @@ system "reduce motion" setting.
 
 ### Student
 
-- **Join by code** — a focused entry screen with a large, tappable code field.
-- **Scan a QR** — full-screen camera with a dimmed frame, torch toggle, and a friendly permission flow that falls back to system Settings when Android will not ask again. Detected codes are handed to the join screen; resolving them to an exam needs a backend.
+- **Join by code** — a focused entry screen with a large, tappable code field. The scanner prefills it with the detected QR text; resolving a code to a real paper needs a backend.
+- **Scan a QR** — full-screen camera with a dimmed frame, torch toggle, and a friendly permission flow that falls back to system Settings when Android will not ask again.
+- **Preview the exam UI** — a cream demo card below **Continue** opens a five-question sample paper without any backend, so the whole student journey can be reviewed today.
+- **Exam instructions** — candidate details, duration, marks, and integrity rules, with a fixed **Start Exam Now** button.
+- **Timed exam** — live countdown (auto-submits at zero), a tappable question palette, animated progress, one-tap MCQs, and a review-before-submit dialog.
+- **Submission summary** — animated confirmation with the answered count, timestamp, and an honest "saved locally" status.
+- **Built for both modes** — the exam screens use the app palette, respect reduce-motion, and stay readable in light mode.
 
 ## How it fits together
 
@@ -62,13 +67,22 @@ system "reduce motion" setting.
                   ▼        ▼
           /teacher/login   /student/join
                   │        /student/scan
-                  ▼
+                  ▼           │
         /teacher  ·  /teacher/upload  ·  /teacher/profile
+                              │
+                              ▼
+                    /student/instructions
+                              ▼
+                        /student/exam
+                              ▼
+                       /student/result
 ```
 
 Expo Router turns the file tree into routes, so there is no route table to
-maintain. Shared state lives in three small **Zustand** stores (auth, exams,
-theme), which is how uploading on one screen instantly updates Home on another.
+maintain. Shared state lives in four small **Zustand** stores (auth, exams,
+theme, student attempt), which is how uploading on one screen instantly updates
+Home on another — and how the exam keeps its answers while moving between
+routes.
 
 A full beginner-friendly walkthrough — folder map, state flow, theme system,
 and where a real backend would plug in — is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
@@ -143,12 +157,12 @@ device, and the app runs exactly like the web preview.
 src/
   app/            routes and layouts (Expo Router)
     teacher/      login + (tabs): home, upload, profile
-    student/      join by code + QR scanner
-  components/     reusable UI (auth, brand, exams, feedback, navigation, ui)
+    student/      join, scanner, instructions, exam, result
+  components/     reusable UI (auth, brand, exams, feedback, navigation, student, ui)
   constants/      palette and design tokens
   hooks/          theme, motion, and animation helpers
-  services/       upload simulation and local notifications
-  store/          Zustand stores: auth, exams, theme
+  services/       upload simulation, local notifications, demo paper
+  store/          Zustand stores: auth, exams, theme, student attempt
   types/          shared TypeScript types
   utils/          pure formatting helpers
 assets/           generated icons, splash, logo, notification icon
@@ -191,6 +205,7 @@ the generated files live in [`assets/`](assets/).
 These are intentional placeholders for the frontend prototype, not bugs:
 
 - **No backend.** Uploads simulate progress for about two seconds and never leave the device; exams are seeded in memory and reset when the app restarts.
+- **Demo student exam.** Both the "Continue" button and the preview card open a fixed five-question paper. The code is only displayed; answers live in memory, are not graded, and are not sent anywhere.
 - **No real auth.** Login checks an email shape and a 6+ character password, then opens the teacher area. There is no account, token, or server session.
 - **Fixed demo identity.** The profile shows "Alex Rivera" until a user system exists.
 - **Placeholder join links.** QR codes encode `https://quizguard.app/join/<code>`, a reserved demo domain.

@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -18,28 +18,42 @@ import { JoinOption } from '@/components/ui/JoinOption';
 import type { ThemeColors } from '@/constants/colors';
 import { radius, spacing, typography } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
+import { useStudentExamStore } from '@/store/studentExamStore';
 
 /**
- * Student entry point — type a join code.
+ * Student entry point — scan a QR or type a join code.
  *
- * The code field is real UI state, but joining is not connected: submitting a
- * non-empty code only gives haptic feedback. A real version would call a
- * backend to look the code up and push the exam screen.
+ * There is no backend to look a code up yet, so both paths open the same local
+ * demo paper: the code is echoed into the exam header, and the instruction →
+ * exam → result flow runs entirely from `useStudentExamStore`.
  *
- * The scanner navigates here with a `code` param after a successful scan, but
- * this screen does not read that param yet — it starts empty either way.
+ * The scanner navigates here with a `code` param, which now prefills the field
+ * instead of being ignored.
  */
 export default function StudentJoinScreen() {
   const insets = useSafeAreaInsets();
   const colors = useTheme();
   const styles = useThemedStyles(createStyles);
-  const [code, setCode] = useState('');
+  const params = useLocalSearchParams<{ code?: string }>();
+  const startDemo = useStudentExamStore((state) => state.startDemo);
 
-  const continueWithCode = () => {
-    if (!code.trim()) return;
+  // `useLocalSearchParams` can hand back an array for repeated params; only a
+  // plain string is meaningful as a code.
+  const [code, setCode] = useState(typeof params.code === 'string' ? params.code : '');
+
+  /** Opens the sample paper and moves on to the briefing. */
+  const beginDemo = (demoCode: string) => {
+    startDemo(demoCode);
     if (process.env.EXPO_OS !== 'web') {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    router.push('/student/instructions');
+  };
+
+  const continueWithCode = () => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    beginDemo(trimmed);
   };
 
   return (
@@ -134,6 +148,36 @@ export default function StudentJoinScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {/*
+         * The demo door sits exactly where the red preview box was marked:
+         * below Continue, still above the footnote. It is prominent on purpose
+         * — without a backend, this is the only way to reach the exam screens.
+         */}
+        <Pressable
+          onPress={() => beginDemo('DEMO-EXAM')}
+          accessibilityRole="button"
+          accessibilityLabel="Preview the exam UI with a demo paper"
+          style={({ pressed }) => [styles.demoCard, pressed && styles.demoCardPressed]}
+        >
+          <View style={styles.demoIconTile}>
+            <MaterialCommunityIcons name="play-outline" size={26} color={colors.cardCream} />
+          </View>
+
+          <View style={styles.demoTextWrapper}>
+            <View style={styles.demoLabelRow}>
+              <Text style={styles.demoLabel}>DEMO</Text>
+              <Text style={styles.demoLabelHint}>NO BACKEND NEEDED</Text>
+            </View>
+            <Text style={styles.demoTitle}>Preview the exam UI</Text>
+            <Text style={styles.demoDescription}>
+              Open a sample paper and try the briefing, timer, question palette,
+              and result screen.
+            </Text>
+          </View>
+
+          <MaterialCommunityIcons name="arrow-right" size={20} color={colors.onCreamMuted} />
+        </Pressable>
 
         {/* Calm footnote */}
         <View style={styles.footer}>
@@ -250,6 +294,62 @@ const createStyles = (colors: ThemeColors) =>
     },
     primaryBtnTextDisabled: {
       color: colors.textFaint,
+    },
+    /* Demo door — a cream card so it stands out from the ink surfaces. */
+    demoCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginTop: spacing.md,
+      padding: spacing.md,
+      backgroundColor: colors.cardCream,
+      borderRadius: radius.card,
+      borderCurve: 'continuous',
+      borderWidth: 1,
+      borderColor: colors.onCream,
+    },
+    demoCardPressed: {
+      opacity: 0.9,
+    },
+    demoIconTile: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.control,
+      borderCurve: 'continuous',
+      backgroundColor: colors.onCream,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    demoTextWrapper: {
+      flex: 1,
+      gap: 2,
+    },
+    demoLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    demoLabel: {
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 1,
+      color: colors.onCreamMuted,
+    },
+    demoLabelHint: {
+      fontSize: 9,
+      fontWeight: '700',
+      letterSpacing: 0.6,
+      color: colors.onCreamMuted,
+      opacity: 0.75,
+    },
+    demoTitle: {
+      ...typography.headline,
+      color: colors.onCream,
+    },
+    demoDescription: {
+      ...typography.footnote,
+      color: colors.onCreamMuted,
+      lineHeight: 17,
     },
     footer: {
       flexDirection: 'row',

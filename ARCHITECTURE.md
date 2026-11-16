@@ -18,7 +18,8 @@ A React Native (Expo) app with two roles:
 
 - **Teacher** — sign in, see a dashboard of exams, upload an exam paper, show a
   QR code students can scan, rename/delete exams, change appearance.
-- **Student** — join with a code or scan a QR code.
+- **Student** — join with a code or scan a QR code, read the briefing, sit a
+  timed MCQ paper with a question palette, and see a submission summary.
 
 The same code runs in three places:
 
@@ -45,7 +46,11 @@ src/app/index.tsx                  → /
 src/app/teacher/login.tsx          → /teacher/login
 src/app/teacher/(tabs)/index.tsx   → /teacher
 src/app/teacher/(tabs)/upload.tsx  → /teacher/upload
+src/app/student/join.tsx           → /student/join
 src/app/student/scan.tsx           → /student/scan
+src/app/student/instructions.tsx   → /student/instructions
+src/app/student/exam.tsx           → /student/exam
+src/app/student/result.tsx         → /student/result
 ```
 
 `(tabs)` is a **group**: the parentheses mean "do not put this in the URL". The
@@ -82,11 +87,12 @@ src/
     exams/        rename/delete dialogs and the long-press action sheet
     feedback/     success bottom sheet + confetti
     navigation/   the floating tab bar
+    student/      briefing, running exam, result, and the ambient backdrop
     ui/           small shared pieces (role row, join option)
   constants/      colours and design tokens (spacing, radius, type)
   hooks/          small reusable React hooks (theme, animations, motion)
-  services/       side effects that are not UI (upload, notifications)
-  store/          app-wide state with Zustand (auth, exams, theme)
+  services/       side effects that are not UI (upload, notifications, demo paper)
+  store/          app-wide state with Zustand (auth, exams, theme, attempt)
   types/          shared TypeScript types
   utils/          pure functions (formatting)
 ```
@@ -148,7 +154,7 @@ const createStyles = (colors: ThemeColors) =>
 
 ## 5. State management (Zustand)
 
-There are three stores, each a plain object created once and shared by every
+There are four stores, each a plain object created once and shared by every
 screen:
 
 | Store | Holds | Who reads it |
@@ -156,6 +162,7 @@ screen:
 | `src/store/authStore.ts` | the chosen role (`teacher` / `student`) | landing screen, sign out |
 | `src/store/examStore.ts` | the list of exams + add/rename/delete | Home, Upload, Profile |
 | `src/store/themeStore.ts` | `dark` or `light` | `useTheme()` everywhere |
+| `src/store/studentExamStore.ts` | the demo paper, candidate, answers, result | the four student screens |
 
 ### How to read a store
 
@@ -190,9 +197,9 @@ exams: state.exams.filter((exam) => exam.id !== id)
 ### What is NOT persisted
 
 These stores live in memory. Reloading the app (or cold-starting the APK) resets
-the exams to the seeded samples and the role to `null`. Persistence would be a
-one-line plug-in with Zustand's `persist` middleware plus AsyncStorage — it is
-just not wired up yet.
+the exams to the seeded samples, the student attempt to empty, and the role to
+`null`. Persistence would be a one-line plug-in with Zustand's `persist`
+middleware plus AsyncStorage — it is just not wired up yet.
 
 ---
 
@@ -209,7 +216,8 @@ server. Here is the honest mapping of what exists versus what is simulated.
 | Account identity | fixed name/email "Alex Rivera" | `profile.tsx`, Home avatar |
 | QR code target | placeholder URL `https://quizguard.app/join/<code>` | `Home` |
 | Notifications | local notification, generated on the device | `src/services/uploadNotifications.ts` |
-| Student join | form accepts a code; scanning returns the QR text | `student/join.tsx`, `student/scan.tsx` |
+| Student join | form accepts a code; scanning prefills it | `student/join.tsx`, `student/scan.tsx` |
+| Student exam | fixed 5-question demo paper, answers in memory, no grading | `src/services/studentDemoExam.ts`, `src/store/studentExamStore.ts` |
 
 ### Where a real backend plugs in
 
@@ -238,9 +246,16 @@ server. Here is the honest mapping of what exists versus what is simulated.
 3. **Login** — `submit` in `TeacherLoginForm` currently just calls
    `router.replace('/teacher')`. It would call the auth endpoint, save the token
    (e.g. `expo-secure-store`), then navigate.
-4. **Auto-submit / late joins switches** in Profile are local `useState` only;
+4. **Joining an exam** — `startDemo` in `studentExamStore.ts` is the single place
+   that fills the attempt. A real version would call
+   `POST /api/student/join`, put the returned questions in the same fields, and
+   keep every screen unchanged.
+5. **Saving answers / submitting** — the exam screen writes to the store instead
+   of an API. Replace `selectAnswer` and `finish` with requests (optimistically
+   updating the store) and the UI stays the same.
+6. **Auto-submit / late joins switches** in Profile are local `useState` only;
    they are not saved or sent anywhere.
-5. **Persistence** — add `persist` to the Zustand stores if state must survive
+7. **Persistence** — add `persist` to the Zustand stores if state must survive
    a reload.
 
 The UI never assumes a backend exists, so these changes stay contained in
@@ -332,7 +347,67 @@ unmounted.
 
 ---
 
-## 9. Notifications flow
+## 9. Data flow example: the student demo exam
+
+There is no server to look up a code, so both student doors — **Continue** and
+the cream **Preview the exam UI** card — open the same fixed paper. The code is
+only echoed into the exam header; it does not select anything yet.
+
+```
+/student/join ──Continue / demo card──▶ startDemo(code)
+                                              │  resets quiz, candidate, answers
+                                              ▼
+                                 /student/instructions
+                                              │ "Start Exam Now"
+                                              ▼
+                                    /student/exam
+                     option tap ──▶ selectAnswer(questionId, optionId)
+                     timer hits 0 ──▶ finish(true)  ──┐
+                     "Yes, Submit" ─▶ finish(false) ──┤ replace
+                                                       ▼
+                                    /student/result
+                                              │ "Exit to Home"
+                                              ▼
+                        reset() + dismissTo('/student/join')
+```
+
+Each arrow is a **route**, not a screen swapped inside one component. That is
+the main difference from the original student prototype, which held all four
+screens in one `useState` value. Routes give the flow real back behaviour and
+let the OS animate between steps; the attempt lives in
+`studentExamStore` so it survives those route changes.
+
+Two details worth knowing:
+
+- **Answers are shared state, not screen state.** The exam screen reads
+  `answers` from the store and writes through `selectAnswer`. The old version
+  kept a local `useState` copy and its timer callback captured the first, empty
+  object — so an automatic submit would have reported zero answered questions.
+- **The result is snapshotted at submit time.** `finish()` copies the counts and
+  candidate details into `result`. The exam screen can then be replaced without
+  the summary losing its data, and `result` is what tells the wrapper that the
+  attempt really is finished.
+
+While the timer runs, the swipe-back gesture is disabled and the Android
+hardware back button is swallowed — leaving mid-exam would otherwise pause the
+countdown. The result screen blocks back too, so "Exit to Home" is the only way
+out; it calls `reset()` so the next student starts clean.
+
+The copy is deliberately honest: answers are labelled "Saved on this device",
+the result says nothing was graded, and there is no fake "sent to server"
+message. Both screens also follow the theme: cream accents become ink on cream
+cards in light mode, and the confetti/pulse animations are skipped when the OS
+reduce-motion setting is on.
+
+The few shades the palette does not name — selected-row tints, the modal scrim,
+and the faint backdrop lines — are derived once in
+`src/components/student/studentTheme.ts`. Every student screen reads them from
+there, so the flow cannot drift from the rest of the app and no screen contains
+a raw colour.
+
+---
+
+## 10. Notifications flow
 
 `src/services/uploadNotifications.ts` wraps `expo-notifications`:
 
@@ -355,7 +430,7 @@ On web every function returns immediately, so `localhost:8081` is unaffected.
 
 ---
 
-## 10. Platform differences (web vs native)
+## 11. Platform differences (web vs native)
 
 The app is one codebase, but a few things must differ. The pattern is always a
 guard plus a native implementation:
@@ -377,7 +452,7 @@ would crash with "document is not defined". See `downloadQr` in Home.
 
 ---
 
-## 11. Animations
+## 12. Animations
 
 Two rules keep motion consistent:
 
@@ -399,7 +474,7 @@ re-randomising on each render.
 
 ---
 
-## 12. Styling and layout conventions
+## 13. Styling and layout conventions
 
 - 4/8-point spacing rhythm: `spacing.xs = 4`, `sm = 8`, `md = 16`, `lg = 24`.
 - Radii come from `radius`: controls 12, cards 20, panels 24, pills 999.
@@ -418,7 +493,7 @@ and deep links keep working.
 
 ---
 
-## 13. Icons and assets
+## 14. Icons and assets
 
 `scripts/generate-icons.mjs` is the single source of truth. It stores the logo
 as an 11 × 11 grid of brightness values and renders every PNG from it
@@ -433,7 +508,7 @@ Changing the grid and running `npm run icons` updates the whole set.
 
 ---
 
-## 14. Reading the code: a practical method
+## 15. Reading the code: a practical method
 
 1. Start at `src/app/_layout.tsx` to see the global providers and the route
    stack.
@@ -458,13 +533,14 @@ grep "Platform.OS"      → every web/native branch
 Several key files also open with a short "why" comment: `src/app/_layout.tsx`
 (app shell), `src/app/index.tsx` (role branch), `src/app/teacher/(tabs)/upload.tsx`
 (the whole upload journey), `src/store/examStore.ts` (why updates copy arrays),
-`src/services/uploadNotifications.ts` (banner requirements), and
-`src/components/feedback/SuccessSheet.tsx` (animation order). Start there when
-a file looks unfamiliar.
+`src/services/uploadNotifications.ts` (banner requirements),
+`src/components/feedback/SuccessSheet.tsx` (animation order), and the three
+`src/components/student/` views (demo attempt, timer, honest local saving).
+Start there when a file looks unfamiliar.
 
 ---
 
-## 15. Glossary
+## 16. Glossary
 
 | Term | Meaning here |
 | --- | --- |
@@ -482,12 +558,14 @@ a file looks unfamiliar.
 
 ---
 
-## 16. Known placeholder values
+## 17. Known placeholder values
 
 These are intentional stand-ins, not bugs to "fix" without a decision:
 
 - Sample exams (`SEED_EXAMS`) and the fixed profile identity.
 - Login accepts any well-formed email and a 6+ character password.
 - QR links point at `https://quizguard.app/join/<code>`.
+- The student exam is a fixed five-question demo paper; no code lookup, grading,
+  or upload happens. `DEMO_STUDENT` supplies the candidate name/number.
 - Some strings still say **QuizGuard** while the app name is **Secure Exam**.
 - Upload progress is simulated; nothing leaves the device.
