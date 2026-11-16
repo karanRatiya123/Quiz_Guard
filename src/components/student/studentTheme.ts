@@ -50,6 +50,8 @@ export function getStudentTints(colors: ThemeColors): StudentTints {
     line: colors.isDark ? 'rgba(227, 226, 195, 0.05)' : 'rgba(39, 39, 39, 0.055)',
     lineStrong: colors.isDark ? 'rgba(227, 226, 195, 0.06)' : 'rgba(39, 39, 39, 0.07)',
     glow: colors.isDark ? 'rgba(227, 226, 195, 0.06)' : 'rgba(193, 193, 169, 0.22)',
-    dot: colors.isDark ? colors.accent : colors.secondary,
+    // Cream dots read on both canvases; iron dots would vanish in light mode
+    // because the light canvas is Iron-ic.
+    dot: colors.accent,
   };
 }
