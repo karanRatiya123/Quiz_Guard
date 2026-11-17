@@ -2,10 +2,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFloatingTabBarSpace } from '@/components/navigation/FloatingTabBar';
+import { HelpFaqSheet } from '@/components/teacher/HelpFaqSheet';
+import { ProctoringSheet } from '@/components/teacher/ProctoringSheet';
 import type { ThemeColors } from '@/constants/colors';
 import { radius, spacing, typography } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
@@ -24,13 +26,7 @@ const APPEARANCE_OPTIONS: {
 ];
 
 /**
- * Profile tab — teacher identity, exam settings, sign out.
- * Security settings live here (they used to sit on the home screen).
- *
- * Worth knowing: the two security switches are plain `useState`, so they only
- * exist while this screen is mounted and are never sent anywhere. The
- * appearance control is different — it writes to `themeStore`, which is why
- * changing it repaints the whole app instantly.
+ * Profile tab — teacher identity, proctoring guidelines, FAQs, faculty, and sign out.
  */
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -42,24 +38,27 @@ export default function ProfileScreen() {
   const setThemeMode = useThemeStore((state) => state.setMode);
 
   const exams = useExamStore((state) => state.exams);
-  const [autoSubmit, setAutoSubmit] = useState(true);
-  const [lateJoins, setLateJoins] = useState(false);
-
-  /** In light mode a cream on-track would vanish inside the cream card. */
-  const switchTrackOn = colors.isDark ? colors.accent : colors.text;
-  const switchThumb = colors.isDark ? colors.onAccent : colors.cardCream;
-  /** react-native-web ignores `thumbColor` for the on state and defaults to teal. */
-  const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: switchThumb } : {};
+  const [proctoringVisible, setProctoringVisible] = useState(false);
+  const [faqVisible, setFaqVisible] = useState(false);
 
   const subjects = new Set(exams.map((exam) => exam.subject).filter(Boolean)).size;
 
+  const openProctoringGuidelines = () => {
+    if (process.env.EXPO_OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setProctoringVisible(true);
+  };
+
+  const openHelpFaq = () => {
+    if (process.env.EXPO_OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setFaqVisible(true);
+  };
+
   /**
    * Sign out = clear the role and go back to the landing screen.
-   *
-   * There is no session to revoke, so this is only state cleanup. `dismissAll`
-   * first removes the teacher stack (login + tabs); without it, the back
-   * gesture would walk into screens the user just signed out of. `replace`
-   * then puts the landing screen in place with nothing behind it.
    */
   const signOut = () => {
     const confirm = () => {
@@ -111,9 +110,23 @@ export default function ProfileScreen() {
         <View style={styles.profileText}>
           <Text style={styles.name}>Alex Rivera</Text>
           <Text style={styles.email}>alex.rivera@quizguard.app</Text>
-          <View style={styles.rolePill}>
-            <MaterialCommunityIcons name="school-outline" size={13} color={colors.onCream} />
-            <Text style={styles.rolePillText}>Teacher</Text>
+          <View style={styles.institutionRow}>
+            <MaterialCommunityIcons name="domain" size={13} color={colors.onCreamMuted} />
+            <Text style={styles.institutionText}>Oakwood Academy • Science Dept</Text>
+          </View>
+          <View style={styles.pillsRow}>
+            <View style={styles.rolePill}>
+              <MaterialCommunityIcons name="school-outline" size={12} color={colors.onCream} />
+              <Text style={styles.rolePillText}>Teacher</Text>
+            </View>
+            <View style={styles.staffIdPill}>
+              <MaterialCommunityIcons
+                name="badge-account-horizontal-outline"
+                size={12}
+                color={colors.onCream}
+              />
+              <Text style={styles.staffIdPillText}>ID: FAC-409</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -130,40 +143,58 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Exam security */}
-      <Text style={styles.sectionTitle}>EXAM SECURITY</Text>
+      {/* Support & Guidelines */}
+      <Text style={styles.sectionTitle}>SUPPORT & GUIDELINES</Text>
       <View style={styles.group}>
-        <View style={styles.settingRow}>
+        <Pressable
+          onPress={openProctoringGuidelines}
+          accessibilityRole="button"
+          accessibilityLabel="Proctoring Guidelines"
+          accessibilityHint="Opens exam security and proctoring best practices"
+          android_ripple={{ color: colors.secondaryPress }}
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+        >
+          <View style={styles.actionIconContainer}>
+            <MaterialCommunityIcons
+              name="shield-check-outline"
+              size={22}
+              color={colors.accent}
+            />
+          </View>
           <View style={styles.settingText}>
-            <Text style={styles.settingTitle}>Auto-submit on leave</Text>
+            <Text style={styles.settingTitle}>Proctoring Guidelines</Text>
             <Text style={styles.settingDescription}>
-              Submits a student&apos;s attempt if they exit or switch apps.
+              Standard operating procedures for session setup & exam integrity.
             </Text>
           </View>
-          <Switch
-            value={autoSubmit}
-            onValueChange={setAutoSubmit}
-            {...webSwitchProps}
-            trackColor={{ false: colors.surfaceMuted, true: switchTrackOn }}
-            thumbColor={switchThumb}
-          />
-        </View>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+        </Pressable>
+
         <View style={styles.groupDivider} />
-        <View style={styles.settingRow}>
+
+        <Pressable
+          onPress={openHelpFaq}
+          accessibilityRole="button"
+          accessibilityLabel="Help and FAQs"
+          accessibilityHint="Opens answers to common instructor questions"
+          android_ripple={{ color: colors.secondaryPress }}
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+        >
+          <View style={styles.actionIconContainer}>
+            <MaterialCommunityIcons
+              name="help-circle-outline"
+              size={22}
+              color={colors.accent}
+            />
+          </View>
           <View style={styles.settingText}>
-            <Text style={styles.settingTitle}>Allow late joins</Text>
+            <Text style={styles.settingTitle}>Help & FAQs</Text>
             <Text style={styles.settingDescription}>
-              Students can scan the QR after the exam has started.
+              Answers on join codes, supported upload formats & offline mode.
             </Text>
           </View>
-          <Switch
-            value={lateJoins}
-            onValueChange={setLateJoins}
-            {...webSwitchProps}
-            trackColor={{ false: colors.surfaceMuted, true: switchTrackOn }}
-            thumbColor={switchThumb}
-          />
-        </View>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+        </Pressable>
       </View>
 
       {/* Faculty — the admin creates the other teacher accounts here */}
@@ -175,13 +206,13 @@ export default function ProfileScreen() {
           accessibilityLabel="Add faculty"
           accessibilityHint="Opens a form to create a teacher account"
           android_ripple={{ color: colors.secondaryPress }}
-          style={({ pressed }) => [styles.facultyRow, pressed && styles.infoRowPressed]}
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
         >
-          <View style={styles.facultyIcon}>
+          <View style={styles.actionIconContainer}>
             <MaterialCommunityIcons
               name="account-multiple-plus-outline"
-              size={20}
-              color={colors.text}
+              size={22}
+              color={colors.accent}
             />
           </View>
           <View style={styles.settingText}>
@@ -253,7 +284,17 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.version}>Quiz Guard 1.0.0</Text>
+      <Text style={styles.version}>Quiz Guard 1.0.0 • Teacher Portal</Text>
+
+      {/* Sheets */}
+      <ProctoringSheet
+        visible={proctoringVisible}
+        onClose={() => setProctoringVisible(false)}
+      />
+      <HelpFaqSheet
+        visible={faqVisible}
+        onClose={() => setFaqVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -313,7 +354,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     profileText: {
       flex: 1,
-      gap: 2,
+      gap: 3,
     },
     name: {
       ...typography.title3,
@@ -323,12 +364,27 @@ const createStyles = (colors: ThemeColors) =>
       ...typography.footnote,
       color: colors.onCreamMuted,
     },
+    institutionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 2,
+    },
+    institutionText: {
+      ...typography.caption,
+      color: colors.onCreamMuted,
+      fontWeight: '500',
+    },
+    pillsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 4,
+    },
     rolePill: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      alignSelf: 'flex-start',
-      marginTop: 4,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: radius.pill,
@@ -339,6 +395,22 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 11,
       fontWeight: '600',
       color: colors.onCream,
+    },
+    staffIdPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: radius.pill,
+      backgroundColor: 'rgba(39, 39, 39, 0.08)',
+    },
+    staffIdPillText: {
+      ...typography.caption,
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.onCream,
+      fontVariant: ['tabular-nums'],
     },
 
     /* Stats */
@@ -406,12 +478,31 @@ const createStyles = (colors: ThemeColors) =>
     },
     settingTitle: {
       ...typography.headline,
+      fontSize: 16,
       color: colors.text,
     },
     settingDescription: {
       ...typography.footnote,
       color: colors.textMuted,
       lineHeight: 18,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.md,
+    },
+    actionRowPressed: {
+      backgroundColor: colors.secondaryPress,
+    },
+    actionIconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.control,
+      borderCurve: 'continuous',
+      backgroundColor: colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     infoRow: {
       flexDirection: 'row',
@@ -421,25 +512,10 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
     },
-    /* Faculty row */
-    facultyRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      padding: spacing.md,
-    },
-    facultyIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.control,
-      borderCurve: 'continuous',
-      backgroundColor: colors.surfaceMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     infoRowPressed: {
       backgroundColor: colors.secondaryPress,
     },
+
     /* Appearance segmented control */
     segmented: {
       flexDirection: 'row',
@@ -475,10 +551,6 @@ const createStyles = (colors: ThemeColors) =>
     infoLabel: {
       ...typography.body,
       color: colors.text,
-    },
-    infoValue: {
-      ...typography.subhead,
-      color: colors.textFaint,
     },
     signOutLabel: {
       fontWeight: '600',
