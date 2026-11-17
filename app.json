@@ -16,7 +16,7 @@
     "android": {
       "package": "com.secureexam.app",
       "adaptiveIcon": {
-          "backgroundColor": "#141413",
+        "backgroundColor": "#141413",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -80,9 +80,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "16d2028f-4e36-4bcf-b463-008b4e322936"
+        "projectId": "f1b09be7-175d-4c89-a3fd-50aa1e59bfc2"
       }
     },
-    "owner": "karanratiya11"
+    "owner": "karanmer"
   }
 }
